@@ -8,7 +8,7 @@ from PIL import Image
 
 
 zprava = None
-tabulka = True
+tabulka = None
 spritesheet = Image.open("cat.png")
 obrazek = None
 
@@ -19,7 +19,7 @@ default_bezdak = {
     "hlad": 50,
     "barva": "zelená",
     "životy": 100,
-    "čistota": 100,
+    "čistota": 0,
     "energie": 90,
     "žije": True,
     "věk": 0,
@@ -29,7 +29,7 @@ default_bezdak = {
 }
 
 puvodni_cas = dt.datetime.now()
-
+puvodni_cass = dt.datetime.now()
 
 
 async def krmeni():
@@ -69,53 +69,68 @@ async def hra():
     obrazek.source = vystrihni_obrazek(0, 0)
     allcontrol()
 
-
 async def spanek():
     bezdak["energie"] = 100
     print(f"Zzz...Zzz...Zzz...")
     print(f"Bezďák je čilý")
     obrazek.source = vystrihni_obrazek(1, 49)
     zprava.content = f"Zzz...Zzz...Zzz..."
-    await asyncio.sleep(1)
+    await asyncio.sleep(1.5)
     zprava.content = f"Bezďák je čilý"
     ui.notify(f"energie FULL", group=False, position="bottom-left", color="blue")
     obrazek.source = vystrihni_obrazek(0, 20)
     allcontrol()
 
+async def zivoty():
+    bezdak["životy"] = 100
+    print(f"Ohmmmmmm")
+    print(f"Bezďák je uzdravený")
+    obrazek.source = vystrihni_obrazek(2, 29)
+    bezdak["šťastnost"] = False
+    bezdak["energie"] -= 70
+    bezdak["hlad"] -= 50
+    bezdak["žizen"] -= 50
+    zprava.content = f"+Healing+"
+    ui.notify(f"energie -70", group=False, position="bottom-left", color="pink")
+    ui.notify(f"hlad -50", group=False, position="bottom-left", color="pink")
+    ui.notify(f"žízeň -50", group=False, position="bottom-left", color="pink")
+    await asyncio.sleep(3)
+    zprava.content = f"Bezďák je uzdravený"
+    ui.notify(f"životy zregenerovány", group=False, position="bottom-left", color="blue")
+    obrazek.source = vystrihni_obrazek(4, 23)
+    allcontrol()
+
+def score():
+    bezdak["čistota"] += 11*bezdak["věk"]
+    bezdak["životy"] -= 80
+    obrazek.source = vystrihni_obrazek(3, 65)
+    ui.notify(f"životy -80", group=False, position="top-right", color="red")
+    ui.notify(f"+points", group=False, position="top", color="green")
+    obrazek.source = vystrihni_obrazek(0, 28)
+    allcontrol()
+
 
 def status():
-
-    print(f"""
-    Kapacita žízně bezďáka je {bezdak["žizen"]}.
-    Kapacita žaludku bezďáka je {bezdak["hlad"]}.
-    Energie bezďáka je {bezdak["energie"]}.
-    Životy bezďáka jsou {bezdak["životy"]}.
-    {bezdak["jmeno"]} je {"šťastný" if bezdak["šťastnost"] == False else "Nešťastný"}.
-""")
-    tabulka = f"""
-    Kapacita žízně bezďáka je {bezdak["žizen"]}.<br>
-    Kapacita žaludku bezďáka je {bezdak["hlad"]}.<br>
-    Energie bezďáka je {bezdak["energie"]}.<br>
-    Životy bezďáka jsou {bezdak["životy"]}.<br>
-    {bezdak["jmeno"]} je {"šťastný" if bezdak["šťastnost"] == False else "Nešťastný"}.<br>
-"""
     allcontrol()
 
 def zkontroluj_status():
-    if bezdak["hlad"] > 120 or bezdak["hlad"] < -20:
+    if bezdak["hlad"] > 100 or bezdak["hlad"] < 0:
         bezdak["životy"] -= 10
         ui.notify(f"Životy -10", group=False, position="top-right", color="red")
 
-    if bezdak["žizen"] > 120 or bezdak["žizen"] < -20:
+    if bezdak["žizen"] > 100 or bezdak["žizen"] < 0:
+        bezdak["životy"] -= 10
+        ui.notify(f"Životy -10", group=False, position="top-right", color="red")
+
+    if bezdak["energie"] > 100 or bezdak["energie"] < 0:
         bezdak["životy"] -= 10
         ui.notify(f"Životy -10", group=False, position="top-right", color="red")
 
     if bezdak["životy"] <= 0:
         bezdak["žije"] = False
         print(f"{bezdak["jmeno"]} umřel")
-        zprava.content = f"{bezdak["jmeno"]} zemřel ve věku {bezdak["věk"]}"
-        ui.shutdown()
-        exit()
+        dead_screen()
+        return
     
     if bezdak["hlad"] < 30:
         print(f"{bezdak["jmeno"]} začíná mít hlad")
@@ -133,25 +148,36 @@ def zkontroluj_status():
         print(f"{bezdak["jmeno"]} je žíznivý")
         zprava.content = f"Bezďák je žíznivý"
 
+    if bezdak["energie"] < 30:
+        print(f"{bezdak["jmeno"]} začíná být unavený")
+        zprava.content = f"Bezďáj začíná být unavený"
+
+    if bezdak["energie"] < 0:
+        print(f"{bezdak["jmeno"]} se potřebuje vyspat")
+        zprava.content = f"Bezďák se potřebuje vyspat"
+
 def hladoveni():
     global puvodni_cas
     ted = dt.datetime.now()
-    if ted > puvodni_cas + dt.timedelta(seconds=3):
+    if ted > puvodni_cas + dt.timedelta(seconds=2):
         bezdak["hlad"] -= 10
         print("hlad -10")
         ui.notify(f"hlad -10", group=False, position="bottom-right", color="pink")
         bezdak["žizen"] -= 10
         print("žízeň -10")
         ui.notify(f"žízeň -10", group=False, position="bottom-right", color="pink")
+        bezdak["energie"] -= 10
+        print("energie -10")
+        ui.notify(f"energie -10", group=False, position="bottom-right", color="pink")
         puvodni_cas = ted
 
 def starnuti():
-    global puvodni_cas
+    global puvodni_cass
     ted = dt.datetime.now()
-    if ted > puvodni_cas + dt.timedelta(hours=1):
+    if ted > puvodni_cass + dt.timedelta(seconds=40):
         bezdak["věk"] += 1
         ui.notify(f"+1 rok", color="blue")
-        puvodni_cas = ted
+        puvodni_cass = ted   
 
 def load():
     global bezdak, default_bezdak
@@ -178,19 +204,59 @@ def vystrihni_obrazek(x, y):
     y = y * 64
     return spritesheet.crop((x, y, x + 64, y + 64))
 
+def aktualizuj_tabulku():
+    global tabulka
+    if tabulka is None:
+        return
+
+    tabulka.content = f"""
+Jídlo: {bezdak['hlad']}%<br>
+Voda: {bezdak['žizen']}%<br>
+Energie: {bezdak['energie']}%<br>
+Životy: {bezdak['životy']}<br>
+Nálada: {"Šťastný" if bezdak['šťastnost'] else "Nešťastný"}<br>
+Věk: {bezdak['věk']}<br>
+Skóre: {bezdak['čistota']}
+"""
+
+def dead_screen():
+    vek = bezdak["věk"]
+    with ui.element("div").style("""
+        position: fixed;
+        top: 0; left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: black;
+        opacity: 80%;
+        color: white;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        font-size: 48px;
+        font-weight: bold;
+        z-index: 9999;
+        gap: 20px;
+    """) as umrti_text:
+        ui.markdown(f"{bezdak['jmeno']} zemřel ve věku {vek} let.").classes("text-center")
+        ui.markdown(f"Skóre: {bezdak['čistota']}").classes("text-center")
+
 def allcontrol():
     zkontroluj_status()
+    aktualizuj_tabulku()
     hladoveni()
     starnuti()
+
 def main():
-    global zprava, obrazek
+    global zprava, obrazek, tabulka
 
     tlacitka = {
         "Krmení": krmeni,
         "Hra": hra,
         "Spánek": spanek,
-        "Status": status,
-        "Pití": zizen
+        "Pití": zizen,
+        "Relax": zivoty,
+        "Challenge": score
     }
 
     load()
@@ -203,31 +269,14 @@ def main():
     Energie bezďáka je {bezdak["energie"]}.<br>
     Životy bezďáka jsou {bezdak["životy"]}.<br>
     {bezdak["jmeno"]} je {"šťastný" if bezdak["šťastnost"] == False else "Nešťastný"}.<br>""")
+        aktualizuj_tabulku()
         obrazek = ui.image(vystrihni_obrazek(0, 0)).classes("h-32 w-32")
         zprava = ui.markdown("Vítej").classes("whitespace-pro-line")
         with ui.grid(columns=3):
             for jmeno, funkce in tlacitka.items():
-                ui.button(jmeno, on_click=funkce).classes("!bg-purple-200 text-black rounded-full")
+                abc = ui.button(jmeno, on_click=funkce).classes("!bg-purple-200 text-black rounded-full")
+                tlacitka[jmeno] = abc
 
-
-
-    print("""
-⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠠⣾⢿⣿⡟⡆⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢹⣿⣱⣾⣱⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⠀⠀⠀⠀⠀⣀⣀⡀⢀⣿⣾⣿⣿⣷⣦⣄⡀⠀⠀⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⠀⠀⠀⡔⠁⠠⢀⢠⣿⣿⣿⣿⣿⣿⣿⣿⣿⡖⠒⠠⡀⠀⠀⠀⠀
-⠀⠀⠀⠀⠀⠀⡗⢉⣠⣼⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣷⠄⠠⣰⠀⠀⠀⠀
-⠀⠀⠀⢀⣠⣶⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⢿⣿⣿⣿⣿⣷⣶⣾⡀⠀⠀⠀
-⠀⠀⢀⣾⡿⢿⣿⣿⣿⣿⣿⣿⣿⡿⢏⣀⣱⣈⡿⣿⣿⣿⣿⡿⢿⡆⠀⠀
-⠀⠀⠈⣿⣷⣄⡉⠙⡿⠿⠿⣿⣿⣶⣿⣷⣿⣏⣁⠀⣿⡉⠈⣱⡎⠃⠀⠀
-⠀⠀⣰⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣾⠋⠀⠀⠀⠀
-⠀⢰⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣷⠀⠀⠀⠀
-⠀⠀⢹⣿⣿⡿⠋⠛⠿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡟⠻⡿⠁⠀⠀⠀
-⠀⠀⠀⠹⣿⣇⠰⠀⢆⠈⡹⣿⣿⣿⠿⠹⣿⣿⣿⣿⠏⣀⠎⠀⠀⠀⠀⠀
-⠀⠀⠀⠀⠀⠈⠉⠉⠉⠉⣆⢂⣽⢿⠀⠰⣟⡾⡍⢰⠊⠀⠀⠀⠀⠀⡀⠂
-⡄⠂⠈⠄⠐⠀⠂⠀⡌⠤⣣⣾⣻⠁⠀⠀⠙⢽⣻⣄⠣⣄⠠⠈⠐⠠⠀⠄
-""")
     print("         Vítej pod mostem!")
 
     print(f"Pro doplnění bezďáka stiskni k. Jeho kapacita žaludku je {bezdak["hlad"]}\nPro ukončení napiš konec")
