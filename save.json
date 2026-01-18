@@ -4,7 +4,7 @@
     "hlad": 50,
     "barva": "zelená",
     "životy": 100,
-    "čistota": 100,
+    "čistota": 0,
     "energie": 90,
     "žije": true,
     "věk": 0,
